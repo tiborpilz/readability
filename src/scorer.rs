@@ -153,7 +153,7 @@ pub fn get_class_weight(handle: Handle) -> f32 {
     weight
 }
 
-pub fn preprocess(dom: &mut RcDom, handle: Handle, title: &mut String) -> bool {
+pub fn preprocess(dom: &mut RcDom, handle: Handle, title: &mut String, description: &mut String) -> bool {
     if let Element {
         ref name,
         ref attrs,
@@ -166,6 +166,22 @@ pub fn preprocess(dom: &mut RcDom, handle: Handle, title: &mut String) -> bool {
             "head" => {
                 let mut nodes: Vec<Rc<Node>> = vec![];
 
+                // Try to get description
+                let meta_description = Attribute {
+                    name: QualName::new(None, ns!(), LocalName::from("property")),
+                    value: "og:description".into(),
+                };
+                dom::find_node(handle.clone(), "meta", &mut nodes, &mut vec![meta_description]);
+                if nodes.len() == 1 {
+                    let node = nodes[0].clone();
+                    let value = dom::get_attr("content", node.clone());
+                    if let Some(value) = value {
+                        description.push_str(&value);
+                    }
+                    nodes.clear();
+                }
+
+                // Try to get title
                 let meta_title = Attribute {
                     name: QualName::new(None, ns!(), LocalName::from("property")),
                     value: "og:title".into(),
@@ -177,6 +193,7 @@ pub fn preprocess(dom: &mut RcDom, handle: Handle, title: &mut String) -> bool {
                     if let Some(value) = value {
                         title.push_str(&value);
                     }
+                    nodes.clear();
                 } else {
                     dom::find_node(handle.clone(), "title", &mut nodes, &mut vec![]);
                     if nodes.len() == 1 {
@@ -199,7 +216,7 @@ pub fn preprocess(dom: &mut RcDom, handle: Handle, title: &mut String) -> bool {
     let mut paragraph_nodes = vec![];
     let mut br_count = 0;
     for child in handle.children.borrow().iter() {
-        if preprocess(dom, child.clone(), title) {
+        if preprocess(dom, child.clone(), title, description) {
             useless_nodes.push(child.clone());
         }
         let c = child.clone();

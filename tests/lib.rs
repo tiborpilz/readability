@@ -13,6 +13,14 @@ fn test_extract_title() {
 }
 
 #[test]
+fn test_extract_description() {
+    let mut file = File::open("./data/description.html").unwrap();
+    let url = Url::parse("https://example.com").unwrap();
+    let product = readability::extractor::extract(&mut file, &url).unwrap();
+    assert_eq!(product.description, "Meta Description");
+}
+
+#[test]
 fn test_fix_rel_links() {
     let mut file = File::open("./data/rel.html").unwrap();
     let url = Url::parse("https://example.com").unwrap();

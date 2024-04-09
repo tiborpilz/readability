@@ -21,6 +21,7 @@ pub struct Product {
     pub title: String,
     pub content: String,
     pub text: String,
+    pub description: String,
 }
 
 #[cfg(feature = "reqwest")]
@@ -45,10 +46,11 @@ where
         .from_utf8()
         .read_from(input)?;
     let mut title = String::new();
+    let mut description = String::new();
     let mut candidates = BTreeMap::new();
     let mut nodes = BTreeMap::new();
     let handle = dom.document.clone();
-    scorer::preprocess(&mut dom, handle.clone(), &mut title);
+    scorer::preprocess(&mut dom, handle.clone(), &mut title, &mut description);
     scorer::find_candidates(Path::new("/"), handle.clone(), &mut candidates, &mut nodes);
     let mut id: &str = "/";
     let mut top_candidate: &Candidate = &Candidate {
@@ -83,5 +85,6 @@ where
         title,
         content,
         text,
+        description,
     })
 }
