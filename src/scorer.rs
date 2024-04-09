@@ -163,7 +163,14 @@ pub fn preprocess(dom: &mut RcDom, handle: Handle, title: &mut String) -> bool {
         let tag_name = name.local.as_ref();
         match tag_name.to_lowercase().as_ref() {
             "script" | "link" | "style" => return true,
-            "title" => dom::extract_text(handle.clone(), title, true),
+            "head" => {
+                let mut nodes: Vec<Rc<Node>> = vec![];
+                dom::find_node(handle.clone(), "title", &mut nodes);
+                if nodes.len() == 1 {
+                    let node = nodes[0].clone();
+                    dom::extract_text(node.clone(), title, true);
+                }
+            }
             _ => (),
         }
         for name in ["id", "class"].iter() {
