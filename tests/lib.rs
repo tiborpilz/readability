@@ -9,7 +9,7 @@ fn test_extract_title() {
     let mut file = File::open("./data/title.html").unwrap();
     let url = Url::parse("https://example.com").unwrap();
     let product = readability::extractor::extract(&mut file, &url).unwrap();
-    assert_eq!(product.title, "This is title");
+    assert_eq!(product.title, "Meta Title");
 }
 
 #[test]
