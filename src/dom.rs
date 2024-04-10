@@ -100,6 +100,22 @@ pub fn has_link(handle: Handle) -> bool {
     false
 }
 
+pub fn extract_value(handle: Handle, attr_name: &str) -> Option<String> {
+    match handle.data {
+        Element {
+            name: _, ref attrs, ..
+        } => {
+            for attr in attrs.borrow().iter() {
+                if attr.name.local.as_ref() == attr_name {
+                    return Some(attr.value.to_string());
+                }
+            }
+        }
+        _ => (),
+    }
+    None
+}
+
 pub fn extract_text(handle: Handle, text: &mut String, deep: bool) {
     for child in handle.children.borrow().iter() {
         let c = child.clone();
@@ -134,15 +150,18 @@ pub fn text_len(handle: Handle) -> usize {
     len
 }
 
-pub fn find_node(handle: Handle, tag_name: &str, nodes: &mut Vec<Rc<Node>>) {
+pub fn find_node(handle: Handle, tag_name: &str, nodes: &mut Vec<Rc<Node>>, tag_attrs: &mut Vec<Attribute>) {
     for child in handle.children.borrow().iter() {
         let c = child.clone();
-        if let Element { ref name, .. } = c.data {
+        if let Element { ref name, ref attrs, .. } = c.data {
             let t = name.local.as_ref();
-            if t.to_lowercase() == tag_name {
+            let a = attrs.borrow();
+            if t.to_lowercase() == tag_name && tag_attrs.iter().all(|attr| {
+                attrs.borrow().iter().any(|a| a.name == attr.name && a.value == attr.value)
+            }) {
                 nodes.push(child.clone());
             };
-            find_node(child.clone(), tag_name, nodes)
+            // find_node(child.clone(), tag_name, nodes, attrs);
         }
     }
 }

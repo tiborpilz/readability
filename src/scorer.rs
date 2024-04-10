@@ -1,7 +1,7 @@
 use dom;
 use html5ever::tree_builder::TreeSink;
 use html5ever::tree_builder::{ElementFlags, NodeOrText};
-use html5ever::{LocalName, QualName};
+use html5ever::{LocalName, QualName, Attribute};
 use markup5ever_rcdom::Handle;
 use markup5ever_rcdom::Node;
 use markup5ever_rcdom::NodeData::{Comment, Doctype, Document, ProcessingInstruction};
@@ -88,7 +88,7 @@ pub fn get_link_density(handle: Handle) -> f32 {
     }
     let mut link_length = 0.0;
     let mut links: Vec<Rc<Node>> = vec![];
-    dom::find_node(handle.clone(), "a", &mut links);
+    dom::find_node(handle.clone(), "a", &mut links, &mut vec![]);
     for link in links.iter() {
         link_length += dom::text_len(link.clone()) as f32;
     }
@@ -153,7 +153,7 @@ pub fn get_class_weight(handle: Handle) -> f32 {
     weight
 }
 
-pub fn preprocess(dom: &mut RcDom, handle: Handle, title: &mut String) -> bool {
+pub fn preprocess(dom: &mut RcDom, handle: Handle, title: &mut String, description: &mut String) -> bool {
     if let Element {
         ref name,
         ref attrs,
@@ -163,7 +163,45 @@ pub fn preprocess(dom: &mut RcDom, handle: Handle, title: &mut String) -> bool {
         let tag_name = name.local.as_ref();
         match tag_name.to_lowercase().as_ref() {
             "script" | "link" | "style" => return true,
-            "title" => dom::extract_text(handle.clone(), title, true),
+            "head" => {
+                let mut nodes: Vec<Rc<Node>> = vec![];
+
+                // Try to get description
+                let meta_description = Attribute {
+                    name: QualName::new(None, ns!(), LocalName::from("property")),
+                    value: "og:description".into(),
+                };
+                dom::find_node(handle.clone(), "meta", &mut nodes, &mut vec![meta_description]);
+                if nodes.len() == 1 {
+                    let node = nodes[0].clone();
+                    let value = dom::get_attr("content", node.clone());
+                    if let Some(value) = value {
+                        description.push_str(&value);
+                    }
+                    nodes.clear();
+                }
+
+                // Try to get title
+                let meta_title = Attribute {
+                    name: QualName::new(None, ns!(), LocalName::from("property")),
+                    value: "og:title".into(),
+                };
+                dom::find_node(handle.clone(), "meta", &mut nodes, &mut vec![meta_title]);
+                if nodes.len() == 1 {
+                    let node = nodes[0].clone();
+                    let value = dom::get_attr("content", node.clone());
+                    if let Some(value) = value {
+                        title.push_str(&value);
+                    }
+                    nodes.clear();
+                } else {
+                    dom::find_node(handle.clone(), "title", &mut nodes, &mut vec![]);
+                    if nodes.len() == 1 {
+                        let node = nodes[0].clone();
+                        dom::extract_text(node.clone(), title, true);
+                    }
+                }
+            }
             _ => (),
         }
         for name in ["id", "class"].iter() {
@@ -178,7 +216,7 @@ pub fn preprocess(dom: &mut RcDom, handle: Handle, title: &mut String) -> bool {
     let mut paragraph_nodes = vec![];
     let mut br_count = 0;
     for child in handle.children.borrow().iter() {
-        if preprocess(dom, child.clone(), title) {
+        if preprocess(dom, child.clone(), title, description) {
             useless_nodes.push(child.clone());
         }
         let c = child.clone();
@@ -377,11 +415,11 @@ pub fn is_useless(id: &Path, handle: Handle, candidates: &BTreeMap<String, Candi
     let mut li_nodes: Vec<Rc<Node>> = vec![];
     let mut input_nodes: Vec<Rc<Node>> = vec![];
     let mut embed_nodes: Vec<Rc<Node>> = vec![];
-    dom::find_node(handle.clone(), "p", &mut p_nodes);
-    dom::find_node(handle.clone(), "img", &mut img_nodes);
-    dom::find_node(handle.clone(), "li", &mut li_nodes);
-    dom::find_node(handle.clone(), "input", &mut input_nodes);
-    dom::find_node(handle.clone(), "embed", &mut embed_nodes);
+    dom::find_node(handle.clone(), "p", &mut p_nodes, &mut vec![]);
+    dom::find_node(handle.clone(), "img", &mut img_nodes, &mut vec![]);
+    dom::find_node(handle.clone(), "li", &mut li_nodes, &mut vec![]);
+    dom::find_node(handle.clone(), "input", &mut input_nodes, &mut vec![]);
+    dom::find_node(handle.clone(), "embed", &mut embed_nodes, &mut vec![]);
     let p_count = p_nodes.len();
     let img_count = img_nodes.len();
     let li_count = li_nodes.len() as i32 - 100;
